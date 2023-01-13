@@ -1,6 +1,7 @@
 import React from 'react';
 import {
 	addListener,
+	addListenerAndCallImmediately,
 	getDataFromLocation,
 	getDataFromPath,
 	getPathFromLocation,
@@ -22,12 +23,22 @@ import { propertiesDefinition, stylePropertiesDefinition } from './textBoxProper
 import TextBoxStyle from './TextBoxStyle';
 import useDefinition from '../util/useDefinition';
 
+interface mapType {
+	[key: string]: any;
+}
+
 function TextBox(props: ComponentProps) {
 	const [isDirty, setIsDirty] = React.useState(false);
 	const [errorMessage, setErrorMessage] = React.useState('');
 	const [value, setvalue] = React.useState('');
 	const [isFocussed, setIsFocussed] = React.useState(false);
 	const [hasText, setHasText] = React.useState(false);
+	const mapValue: mapType = {
+		UNDEFINED: undefined,
+		NULL: null,
+		ENMPTYSTRING: '',
+		ZERO: 0,
+	};
 	const {
 		definition: { bindingPath },
 		definition,
@@ -46,12 +57,12 @@ function TextBox(props: ComponentProps) {
 			emptyValue,
 			validation,
 			supportingText,
-			visibility,
 			readOnly,
 			defaultValue,
 			rightIcon,
 			leftIcon,
 			label,
+			noFloat,
 		} = {},
 		stylePropertiesWithPseudoStates,
 		key,
@@ -62,50 +73,89 @@ function TextBox(props: ComponentProps) {
 		locationHistory,
 		pageExtractor,
 	);
+	console.log('defaultValue', defaultValue);
 	if (!bindingPath) throw new Error('Definition requires bindingpath');
 	const bindingPathPath = getPathFromLocation(bindingPath, locationHistory, pageExtractor);
 	const textBoxValue = getDataFromLocation(bindingPath, locationHistory, pageExtractor);
 	React.useEffect(
 		() =>
-			addListener(
+			addListenerAndCallImmediately(
 				(_, value) => {
 					setvalue(value ?? defaultValue ?? '');
 				},
 				pageExtractor,
 				bindingPathPath,
 			),
-		[bindingPathPath],
+		[],
 	);
 	const handleFocus = () => {
 		setIsFocussed(true);
 	};
-	const handleBlur = async () => {
+	const handleBlur = async (event: any) => {
+		if (!updateStoreImmediately) {
+			if (event?.target.value === '' && removeKeyWhenEmpty) {
+				setData(bindingPathPath, undefined, context?.pageName, true);
+			} else {
+				setData(bindingPathPath, value, context?.pageName);
+			}
+		}
 		setIsFocussed(false);
 	};
 	const handleChange = (event: any) => {
+		let temp =
+			event?.target.value === '' && emptyValue ? mapValue[emptyValue] : event?.target.value;
 		if (!isDirty) {
 			setIsDirty(true);
 		}
-		setData(bindingPathPath, event?.target.value, context?.pageName);
+		if (valueType === 'number' && (temp > maxValue || temp < minValue)) {
+			temp = event?.target.value > maxValue ? maxValue?.toString() : minValue?.toString();
+		}
+		if (updateStoreImmediately) {
+			if (removeKeyWhenEmpty && temp === '') {
+				setData(bindingPathPath, undefined, context?.pageName, true);
+			} else {
+				setData(bindingPathPath, temp, context?.pageName);
+			}
+		} else {
+			setvalue(temp);
+		}
 	};
 	const handleClickClose = () => {
-		setvalue('');
+		let temp = emptyValue ? mapValue[emptyValue] : value;
+		if (removeKeyWhenEmpty) {
+			setData(bindingPathPath, undefined, context?.pageName, true);
+		} else {
+			setData(bindingPathPath, temp, context?.pageName);
+		}
 	};
 	return (
 		<div className="comp compTextBox">
 			<HelperComponent definition={definition} />
+			{noFloat && (
+				<label
+					htmlFor={key}
+					className={`noFloatTextBoxLabel ${
+						readOnly ? 'disabled' : ''
+					}${
+						value?.length ? `hasText` : ``
+					}`}
+				>
+					{getTranslations(label, translations)}
+				</label>
+			)}
 			<div
 				className={`textBoxDiv ${errorMessage ? 'error' : ''} ${
-					isFocussed && !value.length ? 'focussed' : ''
-				} ${value.length && !readOnly ? 'hasText' : ''} ${
-					readOnly ? 'textBoxDisabled' : ''
-				} ${leftIcon ? 'textBoxwithIconContainer' : 'textBoxContainer'}`}
+					isFocussed && !value?.length ? 'focussed' : ''
+				} ${value?.length && !readOnly ? 'hasText' : ''} ${
+					readOnly && !errorMessage ? 'disabled' : ''
+				} ${leftIcon || rightIcon ? 'textBoxwithIconContainer' : 'textBoxContainer'}`}
 			>
 				{leftIcon && <i className={`leftIcon ${leftIcon}`} />}
-				<div className="inputContainer">
+				{rightIcon && <i className={`rightIcon ${rightIcon}`} />}
+				<div className={`inputContainer`}>
 					<input
-						className="textbox"
-						type={'text'}
+						className={`textbox ${valueType === 'number' ? 'remove-spin-button' : ''}`}
+						type={valueType}
 						value={value}
 						onChange={handleChange}
 						placeholder={getTranslations(label, translations)}
@@ -115,19 +165,29 @@ function TextBox(props: ComponentProps) {
 						id={key}
 						disabled={readOnly}
 					/>
-					<label
-						htmlFor={key}
-						className={`textBoxLabel ${errorMessage ? 'error' : ''} ${
-							readOnly ? 'disabled' : ''
-						}`}
-					>
-						{getTranslations(label, translations)}
-					</label>
+					{!noFloat && (
+						<label
+							htmlFor={key}
+							className={`textBoxLabel ${
+								readOnly ? 'disabled' : ''
+							}${
+								value?.length ? `hasText` : ``
+							}`}
+						>
+							{getTranslations(label, translations)}
+						</label>
+					)}
 				</div>
-				{value.length ? (
+				{errorMessage ? (
+					<i
+						className={`errorIcon ${
+							value?.length ? `hasText` : ``
+						} fa fa-solid fa-circle-exclamation`}
+					/>
+				) : value?.length ? (
 					<i
 						onClick={handleClickClose}
-						className="clearText fa fa-solid fa-circle-xmark fa-fw"
+						className="clearText fa fa-regular fa-circle-xmark fa-fw"
 					/>
 				) : null}
 			</div>
@@ -150,6 +210,7 @@ const component: Component = {
 	styleComponent: TextBoxStyle,
 	propertyValidation: (props: ComponentPropertyDefinition): Array<string> => [],
 	properties: propertiesDefinition,
+	stylePseudoStates: ['focus', 'disabled'],
 };
 
 export default component;
