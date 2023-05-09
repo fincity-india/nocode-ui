@@ -19,6 +19,7 @@ const propertiesDefinition: Array<ComponentPropertyDefinition> = [
 		editor: ComponentPropertyEditor.ICON,
 	},
 	COMMON_COMPONENT_PROPERTIES.visibility,
+	COMMON_COMPONENT_PROPERTIES.onClick,
 ];
 
 const stylePropertiesDefinition: ComponentStylePropertyDefinition = {

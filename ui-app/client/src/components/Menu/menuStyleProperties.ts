@@ -166,7 +166,7 @@ export const styleProperties: Array<StylePropertyDefinition> = [
 		cssProperty: 'border-left',
 		displayName: "Menu's Highlight border on hover",
 		description: "Menu's highlight border when active on hover.",
-		defaultValue: '7px solid #E4B022',
+
 		selector: '.menuItemsContainer:hover .menu',
 	},
 	{
@@ -195,7 +195,7 @@ export const styleProperties: Array<StylePropertyDefinition> = [
 		cssProperty: 'border-left',
 		displayName: "Menu's Highlight border",
 		description: "Menu's highlight border when active.",
-		defaultValue: '7px solid transparent',
+
 		selector: '.menu',
 	},
 	{
@@ -224,7 +224,7 @@ export const styleProperties: Array<StylePropertyDefinition> = [
 		cssProperty: 'border-left',
 		displayName: "Menu's Highlight border",
 		description: "Menu's highlight border when active.",
-		defaultValue: '7px solid #E4B022',
+
 		selector: '.menuItemsContainer.isActive .menu',
 	},
 	{

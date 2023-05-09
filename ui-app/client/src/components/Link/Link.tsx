@@ -56,7 +56,7 @@ function Link(props: ComponentProps) {
 	return (
 		<div
 			className="comp compLinks linkDiv"
-			style={resolvedStyles.container ?? {}}
+			style={resolvedStyles.comp ?? {}}
 			onMouseEnter={stylePropertiesWithPseudoStates?.hover ? () => setHover(true) : undefined}
 			onMouseLeave={
 				stylePropertiesWithPseudoStates?.hover ? () => setHover(false) : undefined
