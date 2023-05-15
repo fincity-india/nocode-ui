@@ -9,6 +9,7 @@ import { runEvent } from '../util/runEvent';
 import { processComponentStylePseudoClasses } from '../../util/styleProcessor';
 import { getHref } from '../util/getHref';
 import { useLocation } from 'react-router-dom';
+import { SubHelperComponent } from '../SubHelperComponent';
 
 function ImageComponent(props: ComponentProps) {
 	const { definition, locationHistory, context } = props;
@@ -66,6 +67,12 @@ function ImageComponent(props: ComponentProps) {
 				src={getHref(src, location)}
 				alt={alt}
 				onError={fallBackImg ? handleError : undefined}
+			/>
+			<SubHelperComponent
+				definition={props.definition}
+				className={onClickEvent ? '_onclicktrue' : ''}
+				style={resolvedStyles.image ?? {}}
+				subComponentName="image"
 			/>
 		</div>
 	);
