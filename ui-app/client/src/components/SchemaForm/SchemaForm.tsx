@@ -13,7 +13,7 @@ import { processComponentStylePseudoClasses } from '../../util/styleProcessor';
 import { HelperComponent } from '../HelperComponent';
 import { AnyValueEditor } from '../PageEditor/editors/propertyValueEditors/AnyValueEditor';
 import useDefinition from '../util/useDefinition';
-import SingleSchema from './components/SingleSchemaForm';
+import SingleSchemaForm from './components/SingleSchemaForm';
 import { propertiesDefinition, stylePropertiesDefinition } from './schemaFormProperties';
 import SchemaFormStyle from './SchemaFormStyle';
 import { styleDefaults } from './schemaFormStyleProperies';
@@ -84,7 +84,7 @@ function SchemaForm(
 					isIconButton={true}
 				/>
 			)}
-			<SingleSchema
+			<SingleSchemaForm
 				schema={schema}
 				path=""
 				value={value}
@@ -95,7 +95,7 @@ function SchemaForm(
 					const map = new Map([['Internal.', new StoreExtractor(internal, 'Internal.')]]);
 
 					setStoreData(
-						'Internal.value' + (path ? '.' + path : ''),
+						'Internal.value' + (path ? (path.startsWith('[') ? path : '.' + path) : ''),
 						internal,
 						v,
 						'Internal',
