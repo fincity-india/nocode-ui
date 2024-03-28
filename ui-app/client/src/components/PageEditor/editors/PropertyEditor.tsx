@@ -41,6 +41,10 @@ interface PropertyEditorProps {
 	pageOperations: PageOperations;
 	appPath: string | undefined;
 	editorType: string | undefined;
+	filter: string;
+	setFilter: React.Dispatch<React.SetStateAction<string>>;
+	selectedOption: string;
+	setSelectedOption: React.Dispatch<React.SetStateAction<string>>;
 }
 
 function updatePropertyDefinition(
@@ -117,6 +121,10 @@ export default function PropertyEditor({
 	pageOperations,
 	appPath,
 	editorType,
+	filter,
+	setFilter,
+	selectedOption,
+	setSelectedOption,
 }: Readonly<PropertyEditorProps>) {
 	const [def, setDef] = useState<ComponentDefinition>();
 	const [pageDef, setPageDef] = useState<PageDefinition>();
@@ -406,6 +414,94 @@ export default function PropertyEditor({
 									onlyValue={true}
 									storePaths={storePaths}
 									onChange={v => {}}
+									onShowCodeEditor={onShowCodeEditor}
+									editPageName={editPageName}
+									slaveStore={slaveStore}
+									pageOperations={pageOperations}
+								/>
+							</div>
+							<div className="_eachProp">
+								<div className="_propLabel" title="Tags">
+									Tags :
+									<span className="_description _tooltip" title="Tags">
+										i
+									</span>
+								</div>
+								<div className="_tagsContainer">
+									{Array.isArray(def?.properties?._tags) &&
+										def?.properties?._tags?.map((tag, index) => (
+											<div
+												key={`${tag}_${index}`}
+												className="_tag"
+												onClick={() => {
+													// change the filterBy to Tags and add tag name to the search input.
+													setSelectedOption('Tags');
+													setFilter(tag);
+												}}
+											>
+												{tag}
+												<i
+													style={{
+														cursor: 'pointer',
+														color: '#B8B8B8',
+														fontSize: '16px',
+													}}
+													className="fa-solid fa-xmark"
+													onClick={() => {
+														if (!tag) return;
+														let newDef = duplicate(def);
+														if (!newDef.properties._tags) return;
+
+														newDef.properties._tags =
+															newDef.properties._tags.filter(
+																(item: string) => item !== tag,
+															);
+														updateDefinition(
+															defPath!,
+															locationHistory,
+															pageExtractor,
+															selectedComponent,
+															newDef,
+														);
+													}}
+												></i>
+											</div>
+										))}
+								</div>
+								<PropertyValueEditor
+									appPath={appPath}
+									pageDefinition={pageDef}
+									propDef={{
+										name: 'Tags',
+										displayName: 'Tags',
+										description: 'Tags Identifier',
+										schema: SCHEMA_STRING_COMP_PROP,
+									}}
+									value={{ value: '' }}
+									onlyValue={true}
+									storePaths={storePaths}
+									onChange={v => {
+										if (!v.value?.trim()) return;
+										const newDef = duplicate(def);
+										let val = v.value;
+
+										if (!newDef.properties) {
+											newDef.properties = {};
+										}
+
+										newDef?.properties?._tags
+											? !newDef?.properties?._tags.includes(val) &&
+											  newDef?.properties?._tags.push(val)
+											: (newDef.properties._tags = [val]);
+
+										updateDefinition(
+											defPath!,
+											locationHistory,
+											pageExtractor,
+											selectedComponent,
+											newDef,
+										);
+									}}
 									onShowCodeEditor={onShowCodeEditor}
 									editPageName={editPageName}
 									slaveStore={slaveStore}

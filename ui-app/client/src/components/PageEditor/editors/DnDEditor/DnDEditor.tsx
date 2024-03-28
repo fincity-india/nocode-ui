@@ -36,6 +36,8 @@ interface DnDEditorProps {
 	selectedComponentsList: string[] | [];
 	onSelectedComponentChanged: (key: string) => void;
 	onSelectedComponentListChanged: (key: string) => void;
+	setSelectedComponentOriginal: React.Dispatch<React.SetStateAction<string>>;
+	setSelectedComponentsListOriginal: React.Dispatch<React.SetStateAction<string[]>>;
 	locationHistory: Array<LocationHistory>;
 	pageOperations: PageOperations;
 	onPageReload: () => void;
@@ -62,6 +64,7 @@ interface DnDEditorProps {
 	editorType: string | undefined;
 	sectionsListConnectionName: string | undefined;
 	sectionsCategoryList: any;
+	searchOptions: string[];
 }
 
 export default function DnDEditor({
@@ -79,6 +82,8 @@ export default function DnDEditor({
 	selectedComponentsList,
 	onSelectedComponentChanged,
 	onSelectedComponentListChanged,
+	setSelectedComponentOriginal,
+	setSelectedComponentsListOriginal,
 	locationHistory,
 	pageOperations,
 	theme,
@@ -113,8 +118,11 @@ export default function DnDEditor({
 	editorType,
 	sectionsListConnectionName,
 	sectionsCategoryList,
+	searchOptions,
 }: DnDEditorProps) {
 	const [preview, setPreview] = useState(false);
+	const [filter, setFilter] = useState(''); // filter for components search in our page
+	const [selectedOption, setSelectedOption] = useState<string>('All');
 
 	useEffect(() => {
 		if (!personalizationPath) return;
@@ -190,6 +198,10 @@ export default function DnDEditor({
 								selectedComponentsList={selectedComponentsList}
 								onSelectedComponentChanged={onSelectedComponentChanged}
 								onSelectedComponentListChanged={onSelectedComponentListChanged}
+								setSelectedComponentOriginal={setSelectedComponentOriginal}
+								setSelectedComponentsListOriginal={
+									setSelectedComponentsListOriginal
+								}
 								selectedSubComponent={selectedSubComponent}
 								onSelectedSubComponentChanged={onSelectedSubComponentChanged}
 								pageExtractor={pageExtractor}
@@ -199,6 +211,11 @@ export default function DnDEditor({
 								onContextMenu={onContextMenu}
 								previewMode={preview}
 								editorType={editorType}
+								searchOptions={searchOptions}
+								filter={filter}
+								setFilter={setFilter}
+								selectedOption={selectedOption}
+								setSelectedOption={setSelectedOption}
 							/>
 							<DnDIFrame
 								url={url}
@@ -232,6 +249,10 @@ export default function DnDEditor({
 								previewMode={preview}
 								pageOperations={pageOperations}
 								editorType={editorType}
+								filter={filter}
+								setFilter={setFilter}
+								selectedOption={selectedOption}
+								setSelectedOption={setSelectedOption}
 							/>
 						</div>
 						<DnDBottomBar
