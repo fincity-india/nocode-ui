@@ -6,9 +6,17 @@ import {
 	addListenerAndCallImmediately,
 	addListenerAndCallImmediatelyWithChildrenActivity,
 } from '../../../../context/StoreContext';
-import { LocationHistory, PageDefinition } from '../../../../types/common';
+import {
+	ComponentDefinition,
+	ComponentMultiProperty,
+	ComponentProperty,
+	LocationHistory,
+	PageDefinition,
+} from '../../../../types/common';
 import { ContextMenuDetails } from '../../components/ContextMenu';
 import { PageOperations } from '../../functions/PageOperations';
+import DnDEditorSearchInput from './DnDEditorSearchInput';
+import { Validation } from '../../../../types/validation';
 
 interface DnDNavigationBarProps {
 	personalizationPath: string | undefined;
@@ -16,6 +24,8 @@ interface DnDNavigationBarProps {
 	selectedComponent: string | undefined;
 	onSelectedComponentChanged: (key: string) => void;
 	onSelectedComponentListChanged: (key: string) => void;
+	setSelectedComponentOriginal: React.Dispatch<React.SetStateAction<string>>;
+	setSelectedComponentsListOriginal: React.Dispatch<React.SetStateAction<string[]>>;
 	selectedSubComponent: string | undefined;
 	selectedComponentsList: string[];
 	onSelectedSubComponentChanged: (key: string) => void;
@@ -26,6 +36,11 @@ interface DnDNavigationBarProps {
 	onContextMenu: (m: ContextMenuDetails) => void;
 	previewMode: boolean;
 	editorType: string | undefined;
+	searchOptions: string[];
+	filter: string;
+	setFilter: React.Dispatch<React.SetStateAction<string>>;
+	selectedOption: string;
+	setSelectedOption: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function DnDNavigationBar({
@@ -35,6 +50,8 @@ export default function DnDNavigationBar({
 	selectedComponentsList,
 	onSelectedComponentChanged,
 	onSelectedComponentListChanged,
+	setSelectedComponentOriginal,
+	setSelectedComponentsListOriginal,
 	selectedSubComponent,
 	onSelectedSubComponentChanged,
 	pageExtractor,
@@ -44,15 +61,24 @@ export default function DnDNavigationBar({
 	onContextMenu,
 	previewMode,
 	editorType,
+	searchOptions,
+	filter,
+	setFilter,
+	selectedOption,
+	setSelectedOption,
 }: DnDNavigationBarProps) {
 	const [componentTree, setComponentTree] = React.useState(false); // component tree is open or not
 	const [pageDef, setPageDef] = useState<PageDefinition>(); // page def object
 	const [openParents, setOpenParents] = useState<Set<string>>(new Set()); // set object contains ids of all the parent components those are expand.
 	const [expandAll, setExpandAll] = useState(false); // to expand all our componets
-	const [filter, setFilter] = useState(''); // filter for components search in our page
 	const [lastOpened, setLastOpened] = useState<string | undefined>(undefined); // which component expand last
 	const [dragStart, setDragStart] = useState<boolean>(false); // dragging any component or not
-	const [map, setMap] = useState(new Map<string, string>()); // contains all the components object ids
+	const [map, setMap] = useState(new Map<string, string>()); // setMap will contain a map with key as children and value as parentKey
+	const [filterHandle, setFilterHandle] = useState<NodeJS.Timeout | undefined>();
+	const [showOptions, setShowOptions] = useState<boolean>();
+	const [filteredComponentList, setFilteredComponentList] = useState<string[]>();
+	const [isRegex, setIsRegex] = useState<boolean>(false);
+	const [regexString, setRegexString] = useState<string>('');
 
 	useEffect(() => {
 		if (!personalizationPath) return;
@@ -79,8 +105,8 @@ export default function DnDNavigationBar({
 			addListenerAndCallImmediatelyWithChildrenActivity(
 				(_, v) => {
 					setPageDef(v);
-					setMap(
-						new Map<string, string>(
+					setMap(() => {
+						let newData = new Map<string, string>(
 							Object.values(v?.componentDefinition ?? {})
 								.map((e: any) => ({
 									parentKey: e.key as string,
@@ -88,8 +114,9 @@ export default function DnDNavigationBar({
 								}))
 								.filter(e => !!e.children.length)
 								.flatMap(e => e.children.map(f => [f, e.parentKey])),
-						),
-					);
+						);
+						return newData;
+					});
 				},
 				pageExtractor,
 				`${defPath}`,
@@ -112,25 +139,121 @@ export default function DnDNavigationBar({
 		setOldSelected(selectedComponent);
 	}, [pageDef, expandAll, selectedComponent, openParents, map, setOpenParents, setOldSelected]);
 
+	// here we are just opening the parents of the filtered components
 	const applyFilter = useCallback(
 		(f: string) => {
 			if (!f.trim()) return;
 
 			const set = new Set(openParents);
+			let filteredComponents: string[] = [];
 			Object.values(pageDef?.componentDefinition ?? {})
-				.filter(e => (e.name ?? '').toUpperCase().includes(f.toUpperCase()))
+				.filter(e => {
+					const regex = new RegExp(f);
+					const cond1 = !isRegex
+						? (e.name ?? '').toUpperCase().includes(f.toUpperCase())
+						: regex.test(e.name);
+					const cond2 = !isRegex
+						? (e.type ?? '').toUpperCase().includes(f.toUpperCase())
+						: regex.test(e.type);
+					const cond3 = !isRegex ? (e.key ?? '').includes(f) : regex.test(e.key);
+					const cond4 = (() => {
+						let tags = e.properties?._tags ?? ([] as string[]);
+						if (Array.isArray(tags))
+							return !isRegex
+								? tags.reduce((acc, tag) => {
+										return !acc ? tag.includes(f) : acc;
+								  }, false)
+								: tags.reduce((acc, tag) => {
+										return !acc ? regex.test(tag) : acc;
+								  }, false);
+					})();
+
+					let cond5: boolean = false;
+					const allProperties = e.properties;
+					for (const propsKey in allProperties) {
+						const properties = allProperties[propsKey];
+						const entries = Object.entries(properties);
+
+						if (!cond5) {
+							cond5 = entries.reduce((acc, property) => {
+								return !acc
+									? !isRegex
+										? property[1].includes(f)
+										: regex.test(property[1])
+									: acc;
+							}, false);
+						}
+					}
+
+					let cond6: boolean = false;
+					const allStyleProperties = e.styleProperties;
+					for (const propsKey in allStyleProperties) {
+						const currentConditionStyleProperties = allStyleProperties[propsKey];
+						const allResolutionProperties = {
+							...currentConditionStyleProperties['resolutions'],
+						};
+						for (const currentResolutionStyleProperties of Object.entries(
+							allResolutionProperties,
+						)) {
+							const entries = Object.entries(currentResolutionStyleProperties[1]);
+							if (!cond6) {
+								cond6 = entries.reduce((acc, property) => {
+									const propValue = property[1].value;
+									return !acc && propValue
+										? !isRegex
+											? propValue.includes(f)
+											: regex.test(propValue)
+										: acc;
+								}, false);
+							}
+						}
+					}
+
+					if (selectedOption.includes('Name')) {
+						return cond1;
+					} else if (selectedOption.includes('Type')) {
+						return cond2;
+					} else if (selectedOption.includes('Key')) {
+						return cond3;
+					} else if (selectedOption.includes('Tag')) {
+						return cond4;
+					} else if (selectedOption.includes('Property')) {
+						return cond5;
+					} else if (selectedOption.includes('StyleProp')) {
+						return cond6;
+					} else if (selectedOption.includes('All')) {
+						return (
+							(selectedOption.includes('All') && cond1) ||
+							cond2 ||
+							cond3 ||
+							cond4 ||
+							cond5 ||
+							cond6
+						);
+					}
+				})
 				.map(e => e.key)
 				.forEach(e => {
+					filteredComponents.push(e);
 					let p: string | undefined = e;
 					while ((p = map.get(p))) {
-						if (expandAll) set.delete(p);
-						else set.add(p);
+						if (expandAll) {
+							set.delete(p);
+						} else {
+							set.add(p);
+						}
 					}
 				});
+			setFilteredComponentList(filteredComponents);
 			setOpenParents(set);
 		},
-		[openParents, setOpenParents, pageDef, expandAll, map],
+		[openParents, setOpenParents, pageDef, expandAll, map, selectedOption],
 	);
+
+	// useEffect(() => {
+	// 	setSelectedComponentOriginal('');
+	// 	setSelectedComponentsListOriginal([]);
+	// }, [filteredComponentList]);
 
 	useEffect(() => {
 		if (!selectedComponent || selectedComponentsList?.length != 1) return;
@@ -150,32 +273,34 @@ export default function DnDNavigationBar({
 		}
 	}, [selectedComponent]);
 
-	const [filterHandle, setFilterHandle] = useState<NodeJS.Timeout | undefined>();
-
 	if (!componentTree || previewMode || !pageDef?.componentDefinition || !pageDef.rootComponent)
 		return <div className="_propBar"></div>;
 
 	return (
 		<div className="_propBar _compNavBarVisible _left">
-			<div className="_filterBar">
-				<input
-					type="text"
-					placeholder="Search filter"
-					value={filter}
-					onChange={e => {
-						setFilter(e.target.value);
-						if (filterHandle) clearTimeout(filterHandle);
-						setFilterHandle(setTimeout(() => applyFilter(e.target.value), 1000));
-					}}
-				/>
-				<i
-					className={`fa fa-solid ${expandAll ? 'fa-circle-minus' : 'fa-circle-plus'}`}
-					onClick={() => {
-						setExpandAll(!expandAll);
-						setOpenParents(new Set());
-					}}
-				></i>
-			</div>
+			<DnDEditorSearchInput
+				filter={filter}
+				setFilter={setFilter}
+				filterHandle={filterHandle}
+				setFilterHandle={setFilterHandle}
+				applyFilter={applyFilter}
+				expandAll={expandAll}
+				setExpandAll={setExpandAll}
+				setOpenParents={setOpenParents}
+				showOptions={showOptions}
+				setShowOptions={setShowOptions}
+				selectedOption={selectedOption}
+				setSelectedOption={setSelectedOption}
+				searchOptions={searchOptions}
+				filteredComponentList={filteredComponentList}
+				onSelectedComponentListChanged={onSelectedComponentListChanged}
+				selectedComponent={selectedComponent}
+				selectedComponentsList={selectedComponentsList}
+				setSelectedComponentOriginal={setSelectedComponentOriginal}
+				setSelectedComponentsListOriginal={setSelectedComponentsListOriginal}
+				isRegex={isRegex}
+				setIsRegex={setIsRegex}
+			/>
 			<div className="_compsTree">
 				<CompTree
 					pageDef={pageDef}
@@ -202,6 +327,8 @@ export default function DnDNavigationBar({
 					setDragStart={setDragStart}
 					filter={filter}
 					editorType={editorType}
+					selectedOption={selectedOption}
+					isRegex={isRegex}
 				/>
 			</div>
 		</div>
@@ -228,6 +355,8 @@ interface CompTreeProps {
 	setDragStart: (v: boolean) => void;
 	filter: string;
 	editorType: string | undefined;
+	selectedOption: string;
+	isRegex: boolean;
 }
 
 function CompTree({
@@ -250,6 +379,8 @@ function CompTree({
 	setDragStart,
 	filter,
 	editorType,
+	selectedOption,
+	isRegex,
 }: CompTreeProps) {
 	const comp = pageDef?.componentDefinition[compKey];
 	const hoverLonger = useRef<NodeJS.Timeout | null>();
@@ -317,6 +448,8 @@ function CompTree({
 					setDragStart={setDragStart}
 					filter={filter}
 					editorType={editorType}
+					selectedOption={selectedOption}
+					isRegex={isRegex}
 				/>
 			));
 	}
@@ -365,7 +498,17 @@ function CompTree({
 		</>
 	) : (
 		<span className="_treeText">
-			{filter ? <Filter name={comp.name ?? compKey} filter={filter} /> : comp.name ?? compKey}
+			{filter ? (
+				<Filter
+					name={comp.name ?? compKey}
+					filterString={filter}
+					filterBy={selectedOption}
+					comp={comp}
+					isRegex={isRegex}
+				/>
+			) : (
+				comp.name ?? compKey
+			)}
 		</span>
 	);
 
@@ -437,11 +580,11 @@ function CompTree({
 							onOpenClose(compKey);
 						}}
 					/>
-					{typeof subCompDef?.[0].icon === 'string' ? (
+					{/* {typeof subCompDef?.[0].icon === 'string' ? (
 						<i className={`fa ${subCompDef?.[0].icon}`} />
 					) : (
 						subCompDef?.[0].icon
-					)}
+					)} */}
 					{text}
 				</div>
 			</div>
@@ -514,26 +657,118 @@ function SubCompTree({
 	);
 }
 
-function Filter({ name, filter }: { name: string; filter: string }) {
-	const parts = name.toUpperCase().split(filter.toUpperCase());
-	if (parts.length === 1) return <>{name}</>;
+function Filter({
+	name,
+	filterString,
+	filterBy,
+	comp,
+	isRegex,
+}: {
+	name: string;
+	filterString: string;
+	filterBy: string;
+	comp: ComponentDefinition;
+	isRegex: boolean;
+}) {
+	const key = comp.key;
+	const type = comp.type;
+	const tags = comp?.properties?._tags ?? ([] as string[]);
+	const regex = new RegExp(filterString);
+	const allProperties = { ...comp?.properties };
+	const allStyleProperties = { ...comp?.styleProperties };
 
-	const result: ReactNode[] = [];
-	let start = 0;
-	for (let i = 0; i < parts.length; i++) {
-		if (i !== 0 && parts[i].length === 0) continue;
-		result.push(<span key={`part${i}`}>{name.substring(start, start + parts[i].length)}</span>);
+	const newResult: ReactNode[] = [];
+	const cond1 = !isRegex
+		? name.toUpperCase().includes(filterString.toUpperCase())
+		: regex.test(name);
+	const cond2 = !isRegex ? key.includes(filterString) : regex.test(key);
+	const cond3 = !isRegex
+		? type.toUpperCase().includes(filterString.toUpperCase())
+		: regex.test(type);
+	const cond4 =
+		Array.isArray(tags) &&
+		(!isRegex
+			? tags.reduce((acc, tag) => {
+					return !acc ? tag.includes(filterString) : acc;
+			  }, false)
+			: tags.reduce((acc, tag) => {
+					return !acc ? regex.test(tag) : acc;
+			  }, false));
 
-		start += parts[i].length;
-		if (i < parts.length - 1) {
-			result.push(
-				<span key={`filter${i}`} className="_filter">
-					{name.substring(start, start + filter.length)}
-				</span>,
-			);
+	let cond5: boolean = false;
+	for (const propsKey in allProperties) {
+		const properties = allProperties[propsKey];
+		const entries = Object.entries(properties);
 
-			start += filter.length;
+		if (!cond5) {
+			cond5 = entries.reduce((acc, property) => {
+				return !acc
+					? !isRegex
+						? property[1].includes(filterString)
+						: regex.test(property[1])
+					: acc;
+			}, false);
 		}
 	}
-	return <>{result}</>;
+
+	let cond6: boolean = false;
+	for (const propsKey in allStyleProperties) {
+		const currentConditionStyleProperties = allStyleProperties[propsKey];
+		const allResolutionProperties = { ...currentConditionStyleProperties['resolutions'] };
+		for (const currentResolutionStyleProperties of Object.entries(allResolutionProperties)) {
+			const entries = Object.entries(currentResolutionStyleProperties[1]);
+			if (!cond6) {
+				cond6 = entries.reduce((acc, property) => {
+					const propValue = property[1].value;
+					return !acc && propValue
+						? !isRegex
+							? propValue.includes(filterString)
+							: regex.test(propValue)
+						: acc;
+				}, false);
+			}
+		}
+	}
+
+	if (
+		(filterBy === 'Name' && cond1) ||
+		(filterBy === 'Key' && cond2) ||
+		(filterBy === 'Type' && cond3) ||
+		(filterBy === 'Tags' && cond4) ||
+		(filterBy === 'Property' && cond5) ||
+		(filterBy === 'StyleProp' && cond6) ||
+		(filterBy === 'All' && (cond1 || cond2 || cond3 || cond4 || cond5 || cond6))
+	) {
+		newResult.push(<i className="fa-solid fa-check _filter"></i>);
+	}
+
+	if (filterBy === 'Name' && !isRegex) {
+		const parts = name.toUpperCase().split(filterString.toUpperCase());
+		if (parts.length === 1) return <>{name}</>;
+
+		const result: ReactNode[] = [];
+		let start = 0;
+		for (let i = 0; i < parts.length; i++) {
+			if (i !== 0 && parts[i].length === 0) continue;
+			result.push(
+				<span key={`part${i}`}>{name.substring(start, start + parts[i].length)}</span>,
+			);
+
+			start += parts[i].length;
+			if (i < parts.length - 1) {
+				result.push(
+					<span key={`filter${i}`} className="_filterText">
+						{name.substring(start, start + filterString.length)}
+					</span>,
+				);
+
+				start += filterString.length;
+			}
+		}
+		newResult.push(result);
+	} else {
+		newResult.push(<span>{name}</span>);
+	}
+
+	return newResult;
 }

@@ -37,6 +37,10 @@ interface PropertyBarProps {
 	pageOperations: PageOperations;
 	appPath: string | undefined;
 	editorType: string | undefined;
+	filter: string;
+	setFilter: React.Dispatch<React.SetStateAction<string>>;
+	selectedOption: string;
+	setSelectedOption: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function DnDPropertyBar({
@@ -60,6 +64,10 @@ export default function DnDPropertyBar({
 	pageOperations,
 	appPath,
 	editorType,
+	filter,
+	setFilter,
+	selectedOption,
+	setSelectedOption,
 }: Readonly<PropertyBarProps>) {
 	const [originalCurrentTab, setOriginalCurrentTab] = React.useState(1);
 	const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -148,7 +156,7 @@ export default function DnDPropertyBar({
 		[isDragging, position, onChangePersonalization],
 	);
 
-	if (!selectedComponent || previewMode) return <div className="_propBar"></div>;
+	if (!selectedComponent || previewMode) return <div className="_propBar"></div>; // if no component is selected then returning empty div.
 
 	const pageDef = defPath ? getDataFromPath(defPath, locationHistory, pageExtractor) : undefined;
 	const isSectionGrid = pageDef?.componentDefinition?.[selectedComponent]?.type === 'SectionGrid';
@@ -174,6 +182,10 @@ export default function DnDPropertyBar({
 				pageOperations={pageOperations}
 				appPath={appPath}
 				editorType={editorType}
+				filter={filter}
+				setFilter={setFilter}
+				selectedOption={selectedOption}
+				setSelectedOption={setSelectedOption}
 			/>
 		);
 	} else if (currentTab === 2) {
