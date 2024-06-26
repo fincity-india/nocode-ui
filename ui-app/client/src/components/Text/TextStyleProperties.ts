@@ -777,7 +777,7 @@ export const styleProperties: Array<StylePropertyDefinition> = [
 		groupName: 'MD Heading1 Color',
 		displayName: 'MD Heading1 Color Default Design',
 		name: 'mDHeading1ColorDefaultDesign',
-		defaultValue: '<fontColorOne>',
+		defaultValue: '<fontColorTen>',
 		cssProperty: 'color',
 		selector: '.comp.compText._markdown h1, ._markDownContent h1',
 		noPrefix: true,
