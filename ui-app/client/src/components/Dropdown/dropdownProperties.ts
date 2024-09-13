@@ -123,6 +123,41 @@ const propertiesDefinition: Array<ComponentPropertyDefinition> = [
 	COMMON_COMPONENT_PROPERTIES.uniqueKey,
 	COMMON_COMPONENT_PROPERTIES.labelKey,
 	{
+		name: 'imageKeyType',
+		schema: SCHEMA_STRING_COMP_PROP,
+		displayName: 'Image type.',
+		description:
+			'This is the image that user sees on the screen, OBJECT works when value is primitive.',
+		defaultValue: 'OBJECT',
+		editor: ComponentPropertyEditor.ENUM,
+		group: ComponentPropertyGroup.DATA,
+		enumValues: [
+			{
+				name: 'KEY',
+				displayName: 'Key',
+				description: "Select key as label key's value",
+			},
+			{
+				name: 'INDEX',
+				displayName: 'Index',
+				description: "Select index as label key's value",
+			},
+			{
+				name: 'OBJECT',
+				displayName: 'Object',
+				description: "Select object as label key's value",
+			},
+		],
+	},
+	{
+		name: 'imageKey',
+		schema: SCHEMA_STRING_COMP_PROP,
+		displayName: "Image key's value ",
+		description:
+			'Key value that is used to get image value when label key type is selected as KEY',
+		group: ComponentPropertyGroup.DATA,
+	},
+	{
 		name: 'clearOnSelectingSameValue',
 		schema: SCHEMA_BOOL_COMP_PROP,
 		displayName: 'Clear On Selecting Same Value',

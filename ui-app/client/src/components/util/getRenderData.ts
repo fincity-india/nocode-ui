@@ -18,6 +18,7 @@ const getSelection = (
 ) => {
 	if (selectionType === 'KEY') {
 		let ev: ExpressionEvaluator = new ExpressionEvaluator(`Data.${selectionKey}`);
+		console.log('ev', ev);
 		return ev.evaluate(getExtractionMap(object));
 	}
 	if (selectionType === 'INDEX') {
@@ -47,20 +48,23 @@ export function getRenderData<T>(
 	selectionKey?: string,
 	labelKeyType?: 'KEY' | 'INDEX' | 'OBJECT',
 	labelKey?: string,
-): Array<{ label: any; value: any; key: any; originalObjectKey: any } | undefined> {
+	imageKeyType?: 'KEY' | 'INDEX' | 'OBJECT',
+	imageKey?: string,
+): Array<{ image: any; label: any; value: any; key: any; originalObjectKey: any } | undefined> {
 	if (dataType === 'LIST_OF_STRINGS') {
 		if (Array.isArray(data)) {
 			const res = data.map((e: any, index: number) => {
 				if (typeof e === 'string') {
 					return {
+						image: '',
 						label: e,
 						value: selectionType === 'INDEX' ? index : e,
 						key:
 							uniqueKeyType === 'INDEX'
 								? index
 								: uniqueKeyType === 'RANDOM'
-								? UUID()
-								: e,
+									? UUID()
+									: e,
 						originalObjectKey: index,
 					};
 				}
@@ -75,6 +79,7 @@ export function getRenderData<T>(
 			const res = data.map((e: any, index: number) => {
 				if (typeof e === 'object') {
 					return {
+						image: getSelection('KEY', imageKey, e, 0),
 						label: getSelection('KEY', labelKey, e, 0),
 						value: getSelection(selectionType, selectionKey, e, index),
 						key: getSelection(uniqueKeyType, uniqueKey, e, index),
@@ -91,7 +96,9 @@ export function getRenderData<T>(
 		if (Array.isArray(data)) {
 			const res = data.map((e: any, index: number) => {
 				if (Array.isArray(e)) {
+					console.log('data', e, 'index', index);
 					return {
+						image: '',
 						label: getSelection('KEY', labelKey, e, 0),
 						value: getSelection(selectionType, selectionKey, e, index),
 						key: getSelection(uniqueKeyType, uniqueKey, e, index),
@@ -108,6 +115,7 @@ export function getRenderData<T>(
 		const res = Object.entries(data).map(([k, v], index: number) => {
 			if (typeof v !== 'object') {
 				return {
+					image: getSelection(imageKeyType, '', v, k),
 					label: getSelection(labelKeyType, '', v, k),
 					value: getSelection(selectionType, '', v, k),
 					key: getSelection(uniqueKeyType, '', v, k),
@@ -122,6 +130,7 @@ export function getRenderData<T>(
 		const res = Object.entries(data).map(([k, v]) => {
 			if (typeof v === 'object') {
 				return {
+					image: getSelection(imageKeyType, imageKey, v, k),
 					label: getSelection(labelKeyType, labelKey, v, k),
 					value: getSelection(selectionType, selectionKey, v, k),
 					key: getSelection(uniqueKeyType, uniqueKey, v, k),
@@ -135,7 +144,9 @@ export function getRenderData<T>(
 	if (dataType === 'OBJECT_OF_LISTS') {
 		const res = Object.entries(data).map(([k, v]) => {
 			if (Array.isArray(v)) {
+				console.log('data', data, 'label', labelKeyType, 'sele', labelKey, 'v', v, 'k', k);
 				return {
+					image: getSelection(imageKeyType, imageKey, v, k),
 					label: getSelection(labelKeyType, labelKey, v, k),
 					value: getSelection(selectionType, selectionKey, v, k),
 					key: getSelection(uniqueKeyType, uniqueKey, v, k),

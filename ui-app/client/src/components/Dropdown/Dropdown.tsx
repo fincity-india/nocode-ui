@@ -26,6 +26,7 @@ function DropdownComponent(props: ComponentProps) {
 	const [searchDropdownData, setSearchDropdownData] = useState<
 		Array<
 			| {
+				    image:any;
 					label: any;
 					value: any;
 					key: any;
@@ -51,6 +52,8 @@ function DropdownComponent(props: ComponentProps) {
 	const {
 		key,
 		properties: {
+			imageKeyType,
+			imageKey,
 			labelKey,
 			uniqueKey,
 			selectionKey,
@@ -126,6 +129,8 @@ function DropdownComponent(props: ComponentProps) {
 					selectionKey,
 					labelKeyType,
 					labelKey,
+					imageKeyType,
+					imageKey,
 				)
 					.reduce((acc: Map<string, any>, each: any) => {
 						if (isNullValue(each?.key)) return acc;
@@ -145,8 +150,11 @@ function DropdownComponent(props: ComponentProps) {
 			selectionKey,
 			labelKeyType,
 			labelKey,
+			imageKeyType,
+			imageKey,
 		],
 	);
+	console.log('dropDownData', dropdownData);
 
 	const selectedDataKey: Array<any> | string | undefined = React.useMemo(
 		() => getSelectedKeys(dropdownData, selected, isMultiSelect),
@@ -427,6 +435,9 @@ function DropdownComponent(props: ComponentProps) {
 								definition={props.definition}
 								subComponentName="dropdownItem"
 							/>
+							<img src={each.image}>
+							</img>
+
 							<label
 								style={computedStyles.dropdownItemLabel ?? {}}
 								className="_dropdownItemLabel"
